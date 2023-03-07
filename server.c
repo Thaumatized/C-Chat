@@ -1,5 +1,3 @@
-//https://www.khmere.com/freebsd_book/src/06/poll_socket.c.html
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,22 +16,27 @@
 #define MAXBUFF          (1024)
 #define MAX_CONN         (16)
 #define TIMEOUT          (1024 * 1024)
-#define MY_MAX(a,b)      (a = (a > b) ? a : b )
 #define POLL_ERR         (-1)
 #define POLL_EXPIRE      (0)
 
 int main(int argc, char **argv)
 {
+	//Connections
 	int i, j, responsefd = 0, sfds;
 	unsigned int len;
-	char buff[MAXBUFF];
 	struct sockaddr_in sock;
 	struct pollfd pfds[MAX_CONN + 1];
 	int accepted[MAX_CONN + 1];
 	
-	memset(buff, 0, MAXBUFF);
 	memset(accepted, 0, (MAX_CONN+1) * sizeof(int));
 	accepted[0] = 1;
+
+	//Chat server Stuff
+	int MessagesLength[16];
+	memset(MessagesLength, 0, 16*sizeof(int));
+	char PendingMessages[16][MAXBUFF];
+	memset(PendingMessages, 0, MAXBUFF*16);
+	
 
 	/*
 	 * We will loop through each file descriptor. First,
@@ -69,7 +72,7 @@ int main(int argc, char **argv)
 		perror("Failed to listen on the socket \n");
 	}
 	pfds[0].fd = sfds;
-	pfds[0].events = POLLIN ;
+	pfds[0].events = POLLIN;
 	
 	for(int i = 1; i < MAX_CONN +1; i++)
 	{
@@ -137,13 +140,26 @@ int main(int argc, char **argv)
 				{
 					if(pfds[i].revents & POLLIN && accepted[i])
 					{
-						len = read(pfds[i].fd, buff, MAXBUFF);
-						write(pfds[i].fd, buff, len +1);
-						printf("Echoing back:\n %s \n", buff);
-						//close(afd);
+						MessagesLength[i-1] = read(pfds[i].fd, PendingMessages[i-1], MAXBUFF);
+						printf("Message from %i: %s \n", i, PendingMessages[i-1]);
 					}
 				}
 		} //Switch
+		
+		for(i =0; i < MAX_CONN; i++)
+		{
+			if(MessagesLength[i])
+			{
+				for(int j = 1; j < MAX_CONN+1; j++)
+				{
+					if(i != j -1)
+					{
+						write(pfds[j].fd, PendingMessages[i], MessagesLength[i] + 1);
+					}
+				}
+				MessagesLength[i] = 0;
+			}
+		}
 	} //While
 	return(0);
 }
