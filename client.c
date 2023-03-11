@@ -9,17 +9,20 @@
 
 #include <poll.h>
  
-#define PORT             (22000)
-#define MAXBUFF          (1024)
-#define MAX_CONN         (16)
-#define TIMEOUT          (1024 * 1024)
-#define POLL_ERR         (-1)
-#define POLL_EXPIRE      (0)
+#define PORT			(22000)
+#define MAXBUFF			(1024)
+#define MAX_CONN		(16)
+#define TIMEOUT			(1024 * 1024)
+#define POLL_ERR		(-1)
+#define POLL_EXPIRE		(0)
+
+#define USERNAME		(1)
+#define MESSAGE			(2)
 
 int main(int argc,char **argv)
 {
 	int i, j = 0;
-    char buffer[MAXBUFF];
+    char buffer[2 + MAXBUFF];
     memset(buffer, 0, MAXBUFF);
     
     struct pollfd pfds[2];
@@ -52,7 +55,6 @@ int main(int argc,char **argv)
  		}
  	}
    	inet_pton(AF_INET, ServerAddressString, &(servaddr.sin_addr));
-    //inet_pton(AF_INET,"192.168.207.248",&(servaddr.sin_addr));
  
     connect(pfds[1].fd,(struct sockaddr *)&servaddr,sizeof(servaddr));
  	while(1)
@@ -71,14 +73,26 @@ int main(int argc,char **argv)
 			
 				if(pfds[0].revents & POLLIN)
 				{
-					fgets(buffer,100,stdin); //stdin = 0
+					fgets((buffer + 1),MAXBUFF,stdin); //stdin = 0
+					buffer[0] = MESSAGE;
         			write(pfds[1].fd,buffer,strlen(buffer)+1);
 				}
 				
 				if(pfds[1].revents & POLLIN)
 				{
-						read(pfds[1].fd, buffer, MAXBUFF);
-						printf("%s", buffer);
+						read(pfds[1].fd, buffer, MAXBUFF+2);
+						
+						switch(buffer[0])
+						{
+							case MESSAGE:
+								printf("%s", &(buffer[1]));
+								break;
+							case USERNAME:
+								printf("%s", &(buffer[1]));
+								break;
+							default:
+								break;
+						}
 				}
 		} //Switch
 	} //While

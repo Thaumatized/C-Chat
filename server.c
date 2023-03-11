@@ -19,31 +19,34 @@
 #define POLL_ERR         (-1)
 #define POLL_EXPIRE      (0)
 
+
+#define USERNAME		(1)
+#define MESSAGE			(2)
+
+void SendMessage(int Sender, char* Buffer, int Len);
+
+int accepted[MAX_CONN];
+struct pollfd pfds[MAX_CONN + 1];
+
 int main(int argc, char **argv)
 {
 	//Connections
 	int i, j, responsefd = 0, sfds;
 	unsigned int len;
 	struct sockaddr_in sock;
-	struct pollfd pfds[MAX_CONN + 1];
-	int accepted[MAX_CONN + 1];
 	
 	memset(accepted, 0, (MAX_CONN+1) * sizeof(int));
-	accepted[0] = 1;
 
-	//Chat server Stuff
-	int MessagesLength[16];
-	memset(MessagesLength, 0, 16*sizeof(int));
-	char PendingMessages[16][MAXBUFF];
-	memset(PendingMessages, 0, MAXBUFF*16);
+	char Buffer[MAXBUFF + 2];
+	memset(Buffer, 0, MAXBUFF+2);
 	
 
 	/*
 	 * We will loop through each file descriptor. First,
 	 * we will create a socket bind to it and then call 
 	 * listen. If we get and error we simply exit, 
-	 * which is fine for demo code, but not good in the
-	 * real world where errors should be handled properly. 
+	 * which is fine for now.
+	 * Maybe I will handle it better later?. 
 	 */
 	 
 	// Listener socket stuff
@@ -58,16 +61,16 @@ int main(int argc, char **argv)
 	sock.sin_port = htons(PORT);
 	len = INADDR_ANY;
 	memset(&sock.sin_addr, len, sizeof(struct in_addr));
-	if( bind(sfds, (struct sockaddr *) &sock, sizeof(struct sockaddr_in)) < 0 )
+	if(bind(sfds, (struct sockaddr *) &sock, sizeof(struct sockaddr_in)) < 0)
 	{
 		perror("Cannot bind to the socket");
 		exit(1);
 	}
-	if( setsockopt(sfds, SOL_SOCKET, SO_REUSEADDR, &j, sizeof(int)) < 0 )
+	if(setsockopt(sfds, SOL_SOCKET, SO_REUSEADDR, &j, sizeof(int)) < 0)
 	{
 		perror("Cannot set socket options \n");
 	}
-	if( listen(sfds, 5) < 0 )
+	if(listen(sfds, 5) < 0)
 	{
 		perror("Failed to listen on the socket \n");
 	}
@@ -79,18 +82,10 @@ int main(int argc, char **argv)
 		pfds[i].events = POLLIN;
 	}
 
-
-	/*
-	 * Our main loop. Note, with the poll function we do 
-	 * not need to modify our structure before we call 
-	 * poll again. Also note that the overall function
-	 * is much easier to implement over select.   
-	 */
-	 int a = 1;
-	while(a)
+	while(1)
 	{
 		j = poll(pfds, (unsigned int)MAX_CONN, TIMEOUT);
-		switch( j )
+		switch(j)
 		{
 			case POLL_EXPIRE:
 				printf("Timeout has expired !\n");
@@ -106,16 +101,15 @@ int main(int argc, char **argv)
 					printf("We have a new connection!\n");
 					len = sizeof(struct sockaddr_in);
 					
-					for(i = 1; i < MAX_CONN + 1; i++)
+					for(i = 0; i < MAX_CONN; i++)
 					{
 						if(!accepted[i])
 						{
 							printf("Accepting connection into slot %i.\n", i);
-							pfds[i].fd = accept(sfds, (struct sockaddr *)&sock, &len);
-							if(pfds[i].fd != -1)
+							pfds[i+1].fd = accept(sfds, (struct sockaddr *)&sock, &len);
+							if(pfds[i+1].fd != -1)
 							{
 								accepted[i] = 1;
-								pfds[0].revents = pfds[0].revents &~POLLIN;
 								break;
 							}
 							else
@@ -129,40 +123,47 @@ int main(int argc, char **argv)
 						{
 							int responsefd = accept(sfds, (struct sockaddr *)&sock, &len);
 							write(responsefd, "Sorry, too many connections\0", 28);
-							//pfds[0].revents = pfds[0].revents &~POLLIN;
 							close(responsefd);
-							a = 0;
 						}
 					}
 				}
 				
-				for(i =1; i < MAX_CONN+1; i++)
+				for(i = 0; i < MAX_CONN; i++)
 				{
-					if(pfds[i].revents & POLLIN && accepted[i])
+					if(pfds[i+1].revents & POLLIN)
 					{
-						MessagesLength[i-1] = read(pfds[i].fd, PendingMessages[i-1], MAXBUFF);
-						printf("Message from %i: %s \n", i, PendingMessages[i-1]);
+				
+						int Len = read(pfds[i+1].fd, Buffer, MAXBUFF+2);
+						printf("Message from %i: %s", i, Buffer);
+						SendMessage(i, Buffer, Len);
+						printf("Message done\n");
 					}
 				}
 		} //Switch
-		
-		for(i =0; i < MAX_CONN; i++)
-		{
-			if(MessagesLength[i])
-			{
-				for(int j = 1; j < MAX_CONN+1; j++)
-				{
-					if(i != j -1 && accepted[j])
-					{
-						write(pfds[j].fd, PendingMessages[i], MessagesLength[i] + 1);
-					}
-				}
-				MessagesLength[i] = 0;
-			}
-		}
 	} //While
 	return(0);
 }
 
+	
+void SendMessage(int Sender, char* Buffer, int Len)
+{
+	switch(Buffer[0])
+	{
+		case MESSAGE:
+			for(int i = 0; i < MAX_CONN; i++)
+			{
+				if(i != Sender && accepted[i])
+				{
+					printf("Message to %i: %s\n", i, Buffer);
+					write(pfds[i+1].fd, Buffer, Len);
+				}
+			}
+			break;
+		case USERNAME:
+			printf("Someone is setting their username");
+		default:
+			break;
+	} // Switch
+}
 
 
