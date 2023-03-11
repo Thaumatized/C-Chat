@@ -152,7 +152,7 @@ int main(int argc, char **argv)
 			{
 				for(int j = 1; j < MAX_CONN+1; j++)
 				{
-					if(i != j -1)
+					if(i != j -1 && accepted[j])
 					{
 						write(pfds[j].fd, PendingMessages[i], MessagesLength[i] + 1);
 					}
