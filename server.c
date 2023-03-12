@@ -135,6 +135,7 @@ int main(int argc, char **argv)
 				
 						int Len = read(pfds[i+1].fd, Buffer, MAXBUFF+2);
 						printf("Message from %i: %s", i, Buffer);
+						Buffer[1] = i + 1; //Senderid, 1-MAX_CONN becuse 0 = null
 						SendMessage(i, Buffer, Len);
 						printf("Message done\n");
 					}
@@ -160,7 +161,15 @@ void SendMessage(int Sender, char* Buffer, int Len)
 			}
 			break;
 		case USERNAME:
-			printf("Someone is setting their username");
+			printf("%i is setting their username to %s", Sender, Buffer);
+			for(int i = 0; i < MAX_CONN; i++)
+			{
+				if(i != Sender && accepted[i])
+				{
+					printf("Informing %i:\n", i);
+					write(pfds[i+1].fd, Buffer, Len);
+				}
+			}
 		default:
 			break;
 	} // Switch

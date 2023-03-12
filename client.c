@@ -59,8 +59,9 @@ int main(int argc,char **argv)
     connect(pfds[1].fd,(struct sockaddr *)&servaddr,sizeof(servaddr));
     
     printf("Set user name:\n");
-	fgets((buffer + 1),MAXBUFF,stdin); //stdin = 0
+	fgets((buffer + 2),MAXBUFF,stdin); //stdin = 0
 	buffer[0] = USERNAME;
+	buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.
 	write(pfds[1].fd,buffer,strlen(buffer)+1);
     
  	while(1)
@@ -77,13 +78,16 @@ int main(int argc,char **argv)
 
 			default:  
 			
+				//Send message
 				if(pfds[0].revents & POLLIN)
 				{
-					fgets((buffer + 1),MAXBUFF,stdin); //stdin = 0
+					fgets((buffer + 2),MAXBUFF,stdin); //stdin = 0
 					buffer[0] = MESSAGE;
+					buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.
         			write(pfds[1].fd,buffer,strlen(buffer)+1);
 				}
 				
+				//Receive message
 				if(pfds[1].revents & POLLIN)
 				{
 						read(pfds[1].fd, buffer, MAXBUFF+2);
@@ -91,10 +95,10 @@ int main(int argc,char **argv)
 						switch(buffer[0])
 						{
 							case MESSAGE:
-								printf("%s", &(buffer[1]));
+								printf("%s", &(buffer[2]));
 								break;
 							case USERNAME:
-								printf("%s", &(buffer[1]));
+								printf("%i username to %s", buffer[1], &(buffer[2]));
 								break;
 							default:
 								break;
