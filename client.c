@@ -11,11 +11,13 @@
  
 #define PORT			(22000)
 #define MAXBUFF			(1024)
-#define MAX_CONN		(16)
+#define MAX_USER		(16)
+#define MAX_NAME		(20)
 #define TIMEOUT			(1024 * 1024)
 #define POLL_ERR		(-1)
 #define POLL_EXPIRE		(0)
 
+//Message types
 #define USERNAME		(1)
 #define MESSAGE			(2)
 
@@ -24,6 +26,9 @@ int main(int argc,char **argv)
 	int i, j = 0;
     char buffer[2 + MAXBUFF];
     memset(buffer, 0, MAXBUFF);
+    
+    char UserNames[MAX_USER][MAX_NAME+1];
+    memset(UserNames, 0, MAX_USER*(MAX_NAME+1));
     
     struct pollfd pfds[2];
     
@@ -59,14 +64,14 @@ int main(int argc,char **argv)
     connect(pfds[1].fd,(struct sockaddr *)&servaddr,sizeof(servaddr));
     
     printf("Set user name:\n");
-	fgets((buffer + 2),MAXBUFF,stdin); //stdin = 0
+	fgets((buffer + 2),MAX_NAME,stdin); //stdin = 0
 	buffer[0] = USERNAME;
 	buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.
 	write(pfds[1].fd,buffer,strlen(buffer)+1);
     
  	while(1)
  	{
- 		j = poll(pfds, (unsigned int)MAX_CONN, TIMEOUT);
+ 		j = poll(pfds, 2u, TIMEOUT);
 		switch( j )
 		{
 			case POLL_EXPIRE:
@@ -95,10 +100,15 @@ int main(int argc,char **argv)
 						switch(buffer[0])
 						{
 							case MESSAGE:
-								printf("%s", &(buffer[2]));
+								printf("%s: %s", UserNames[buffer[1]],  &(buffer[2]));
 								break;
 							case USERNAME:
 								printf("%i username to %s", buffer[1], &(buffer[2]));
+								//this leaves out the newline
+								for(int i = 0; i < MAX_NAME && i < strlen(&buffer[2])-1; i++)
+								{
+									UserNames[buffer[1]][i] = buffer[2 + i];
+								}
 								break;
 							default:
 								break;

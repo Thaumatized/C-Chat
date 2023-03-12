@@ -10,23 +10,22 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 
-
-/* our defines */
 #define PORT             (22000)
 #define MAXBUFF          (1024)
-#define MAX_CONN         (16)
+#define MAX_USER         (16)
 #define TIMEOUT          (1024 * 1024)
 #define POLL_ERR         (-1)
 #define POLL_EXPIRE      (0)
 
 
+//Message types
 #define USERNAME		(1)
 #define MESSAGE			(2)
 
 void SendMessage(int Sender, char* Buffer, int Len);
 
-int accepted[MAX_CONN];
-struct pollfd pfds[MAX_CONN + 1];
+int accepted[MAX_USER];
+struct pollfd pfds[MAX_USER + 1];
 
 int main(int argc, char **argv)
 {
@@ -35,7 +34,7 @@ int main(int argc, char **argv)
 	unsigned int len;
 	struct sockaddr_in sock;
 	
-	memset(accepted, 0, (MAX_CONN+1) * sizeof(int));
+	memset(accepted, 0, (MAX_USER+1) * sizeof(int));
 
 	char Buffer[MAXBUFF + 2];
 	memset(Buffer, 0, MAXBUFF+2);
@@ -77,14 +76,14 @@ int main(int argc, char **argv)
 	pfds[0].fd = sfds;
 	pfds[0].events = POLLIN;
 	
-	for(int i = 1; i < MAX_CONN +1; i++)
+	for(int i = 1; i < MAX_USER +1; i++)
 	{
 		pfds[i].events = POLLIN;
 	}
 
 	while(1)
 	{
-		j = poll(pfds, (unsigned int)MAX_CONN, TIMEOUT);
+		j = poll(pfds, (unsigned int)MAX_USER, TIMEOUT);
 		switch(j)
 		{
 			case POLL_EXPIRE:
@@ -101,7 +100,7 @@ int main(int argc, char **argv)
 					printf("We have a new connection!\n");
 					len = sizeof(struct sockaddr_in);
 					
-					for(i = 0; i < MAX_CONN; i++)
+					for(i = 0; i < MAX_USER; i++)
 					{
 						if(!accepted[i])
 						{
@@ -119,7 +118,7 @@ int main(int argc, char **argv)
 							}
 						}
 						
-						if(i == MAX_CONN)
+						if(i == MAX_USER)
 						{
 							int responsefd = accept(sfds, (struct sockaddr *)&sock, &len);
 							write(responsefd, "Sorry, too many connections\0", 28);
@@ -128,14 +127,14 @@ int main(int argc, char **argv)
 					}
 				}
 				
-				for(i = 0; i < MAX_CONN; i++)
+				for(i = 0; i < MAX_USER; i++)
 				{
 					if(pfds[i+1].revents & POLLIN)
 					{
 				
 						int Len = read(pfds[i+1].fd, Buffer, MAXBUFF+2);
 						printf("Message from %i: %s", i, Buffer);
-						Buffer[1] = i + 1; //Senderid, 1-MAX_CONN becuse 0 = null
+						Buffer[1] = i + 1; //Senderid, 1-MAX_USER becuse 0 = null
 						SendMessage(i, Buffer, Len);
 						printf("Message done\n");
 					}
@@ -151,7 +150,7 @@ void SendMessage(int Sender, char* Buffer, int Len)
 	switch(Buffer[0])
 	{
 		case MESSAGE:
-			for(int i = 0; i < MAX_CONN; i++)
+			for(int i = 0; i < MAX_USER; i++)
 			{
 				if(i != Sender && accepted[i])
 				{
@@ -162,7 +161,7 @@ void SendMessage(int Sender, char* Buffer, int Len)
 			break;
 		case USERNAME:
 			printf("%i is setting their username to %s", Sender, Buffer);
-			for(int i = 0; i < MAX_CONN; i++)
+			for(int i = 0; i < MAX_USER; i++)
 			{
 				if(i != Sender && accepted[i])
 				{
