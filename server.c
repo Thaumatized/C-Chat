@@ -10,12 +10,13 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 
-#define PORT             (22000)
-#define MAXBUFF          (1024)
-#define MAX_USER         (16)
-#define TIMEOUT          (1024 * 1024)
-#define POLL_ERR         (-1)
-#define POLL_EXPIRE      (0)
+#define PORT			(22000)
+#define MAXBUFF			(1024)
+#define MAX_USER		(16)
+#define MAX_NAME		(20)
+#define TIMEOUT			(1024 * 1024)
+#define POLL_ERR		(-1)
+#define POLL_EXPIRE		(0)
 
 
 //Message types
@@ -38,6 +39,9 @@ int main(int argc, char **argv)
 
 	char Buffer[MAXBUFF + 2];
 	memset(Buffer, 0, MAXBUFF+2);
+	
+    char UserNames[MAX_USER][MAX_NAME+2]; //+2 = new line and null terminator)
+    memset(UserNames, 0, MAX_USER*(MAX_NAME+1));
 	
 
 	/*
@@ -108,6 +112,22 @@ int main(int argc, char **argv)
 							pfds[i+1].fd = accept(sfds, (struct sockaddr *)&sock, &len);
 							if(pfds[i+1].fd != -1)
 							{
+								//send usernames
+								Buffer[0] = USERNAME;
+								for(int userid = 0; userid < MAX_USER; userid++)
+								{
+									if(accepted[userid])
+									{
+										Buffer[1] = userid + 1;
+										Buffer[strlen(UserNames[userid])+2] = '\0';
+										for(int index = 0; index < strlen(UserNames[userid]); index++)
+										{
+											Buffer[2 + index] = UserNames[userid][index];
+										}
+										write(pfds[i+1].fd, Buffer, strlen(UserNames[userid])+3);
+									}
+								}
+							
 								accepted[i] = 1;
 								break;
 							}
@@ -137,6 +157,16 @@ int main(int argc, char **argv)
 						Buffer[1] = i + 1; //Senderid, 1-MAX_USER becuse 0 = null
 						SendMessage(i, Buffer, Len);
 						printf("Message done\n");
+						
+						//if USERNAME, save it.
+						if(Buffer[0] == USERNAME)
+						{
+							//+1 because we wan't to include the newline, since the client parses it out!
+							for(int index = 0; index < MAX_NAME + 1 && index < strlen(&Buffer[2]); index++)
+							{
+								UserNames[i][index] = Buffer[2 + index];
+							}
+						}
 					}
 				}
 		} //Switch
@@ -160,7 +190,8 @@ void SendMessage(int Sender, char* Buffer, int Len)
 			}
 			break;
 		case USERNAME:
-			printf("%i is setting their username to %s", Sender, Buffer);
+			//Share the new username
+			printf("%i is setting their username to %s\n", Sender, Buffer);
 			for(int i = 0; i < MAX_USER; i++)
 			{
 				if(i != Sender && accepted[i])
@@ -169,6 +200,7 @@ void SendMessage(int Sender, char* Buffer, int Len)
 					write(pfds[i+1].fd, Buffer, Len);
 				}
 			}
+			break;
 		default:
 			break;
 	} // Switch

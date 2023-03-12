@@ -27,7 +27,7 @@ int main(int argc,char **argv)
     char buffer[2 + MAXBUFF];
     memset(buffer, 0, MAXBUFF);
     
-    char UserNames[MAX_USER][MAX_NAME+1];
+    char UserNames[MAX_USER][MAX_NAME+1]; // +1 = null terminator
     memset(UserNames, 0, MAX_USER*(MAX_NAME+1));
     
     struct pollfd pfds[2];
@@ -95,20 +95,27 @@ int main(int argc,char **argv)
 				//Receive message
 				if(pfds[1].revents & POLLIN)
 				{
+						memset(buffer, 0, MAXBUFF+2);
 						read(pfds[1].fd, buffer, MAXBUFF+2);
 						
 						switch(buffer[0])
 						{
 							case MESSAGE:
-								printf("%s: %s", UserNames[buffer[1]],  &(buffer[2]));
+								printf("%s: %s", UserNames[buffer[1]-1],  &(buffer[2]));
 								break;
-							case USERNAME:
-								printf("%i username to %s", buffer[1], &(buffer[2]));
-								//this leaves out the newline
-								for(int i = 0; i < MAX_NAME && i < strlen(&buffer[2])-1; i++)
+							case USERNAME: ;
+								int index = 0;
+								while(index < MAXBUFF+2 && buffer[index] != 0)
 								{
-									UserNames[buffer[1]][i] = buffer[2 + i];
+									printf("%i set username to %s", buffer[index + 1], &(buffer[index + 2]));
+									//this leaves out the newline
+									for(int i = 0; i < MAX_NAME && i < strlen(&buffer[index + 2])-1; i++)
+									{
+										UserNames[buffer[index + 1]-1][i] = buffer[index + 2 + i];
+									}
+									index += strlen(buffer + index)+1;
 								}
+								
 								break;
 							default:
 								break;
