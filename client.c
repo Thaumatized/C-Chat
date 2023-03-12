@@ -57,6 +57,12 @@ int main(int argc,char **argv)
    	inet_pton(AF_INET, ServerAddressString, &(servaddr.sin_addr));
  
     connect(pfds[1].fd,(struct sockaddr *)&servaddr,sizeof(servaddr));
+    
+    printf("Set user name:\n");
+	fgets((buffer + 1),MAXBUFF,stdin); //stdin = 0
+	buffer[0] = USERNAME;
+	write(pfds[1].fd,buffer,strlen(buffer)+1);
+    
  	while(1)
  	{
  		j = poll(pfds, (unsigned int)MAX_CONN, TIMEOUT);
