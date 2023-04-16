@@ -149,9 +149,9 @@ int main(int argc, char **argv)
 				
 				for(i = 0; i < MAX_USER; i++)
 				{
-					if(pfds[i+1].revents & POLLIN)
+                    //has data and is set.
+					if(pfds[i+1].revents & POLLIN && pfds[i+1].fd != 0)
 					{
-				
 						int Len = read(pfds[i+1].fd, Buffer, MAXBUFF+2);
 						printf("Message from %i: %s", i, Buffer);
 						Buffer[1] = i + 1; //Senderid, 1-MAX_USER becuse 0 = null
