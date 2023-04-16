@@ -9,18 +9,26 @@
 
 #include <poll.h>
  
-#define PORT             (22000)
-#define MAXBUFF          (1024)
-#define MAX_CONN         (16)
-#define TIMEOUT          (1024 * 1024)
-#define POLL_ERR         (-1)
-#define POLL_EXPIRE      (0)
+#define PORT			(22000)
+#define MAXBUFF			(1024)
+#define MAX_USER		(16)
+#define MAX_NAME		(20)
+#define TIMEOUT			(1024 * 1024)
+#define POLL_ERR		(-1)
+#define POLL_EXPIRE		(0)
+
+//Message types
+#define USERNAME		(1)
+#define MESSAGE			(2)
 
 int main(int argc,char **argv)
 {
 	int i, j = 0;
-    char buffer[MAXBUFF];
+    char buffer[2 + MAXBUFF];
     memset(buffer, 0, MAXBUFF);
+    
+    char UserNames[MAX_USER][MAX_NAME+1]; // +1 = null terminator
+    memset(UserNames, 0, MAX_USER*(MAX_NAME+1));
     
     struct pollfd pfds[2];
     
@@ -52,12 +60,18 @@ int main(int argc,char **argv)
  		}
  	}
    	inet_pton(AF_INET, ServerAddressString, &(servaddr.sin_addr));
-    //inet_pton(AF_INET,"192.168.207.248",&(servaddr.sin_addr));
  
     connect(pfds[1].fd,(struct sockaddr *)&servaddr,sizeof(servaddr));
+    
+    printf("Set user name:\n");
+	fgets((buffer + 2),MAX_NAME,stdin); //stdin = 0
+	buffer[0] = USERNAME;
+	buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.
+	write(pfds[1].fd,buffer,strlen(buffer)+1);
+    
  	while(1)
  	{
- 		j = poll(pfds, (unsigned int)MAX_CONN, TIMEOUT);
+ 		j = poll(pfds, 2u, TIMEOUT);
 		switch( j )
 		{
 			case POLL_EXPIRE:
@@ -69,16 +83,43 @@ int main(int argc,char **argv)
 
 			default:  
 			
+				//Send message
 				if(pfds[0].revents & POLLIN)
 				{
-					fgets(buffer,100,stdin); //stdin = 0
+					fgets((buffer + 2),MAXBUFF,stdin); //stdin = 0
+					buffer[0] = MESSAGE;
+					buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.
         			write(pfds[1].fd,buffer,strlen(buffer)+1);
 				}
 				
+				//Receive message
 				if(pfds[1].revents & POLLIN)
 				{
-						read(pfds[1].fd, buffer, MAXBUFF);
-						printf("%s", buffer);
+						memset(buffer, 0, MAXBUFF+2);
+						read(pfds[1].fd, buffer, MAXBUFF+2);
+						
+						switch(buffer[0])
+						{
+							case MESSAGE:
+								printf("%s: %s", UserNames[buffer[1]-1],  &(buffer[2]));
+								break;
+							case USERNAME: ;
+								int index = 0;
+								while(index < MAXBUFF+2 && buffer[index] != 0)
+								{
+									printf("%i set username to %s", buffer[index + 1], &(buffer[index + 2]));
+									//this leaves out the newline
+									for(int i = 0; i < MAX_NAME && i < strlen(&buffer[index + 2])-1; i++)
+									{
+										UserNames[buffer[index + 1]-1][i] = buffer[index + 2 + i];
+									}
+									index += strlen(buffer + index)+1;
+								}
+								
+								break;
+							default:
+								break;
+						}
 				}
 		} //Switch
 	} //While
