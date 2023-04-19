@@ -26,24 +26,24 @@
 int main(int argc,char **argv)
 {
 	int i, j = 0;
-    char buffer[MAXBUFFER];
-    memset(buffer, 0, MAXBUFFER);
-    
-    char UserNames[MAX_USER][MAX_NAME+1]; // +1 = null terminator
-    memset(UserNames, 0, MAX_USER*(MAX_NAME+1));
-    
-    struct pollfd pfds[2];
-    
-    pfds[0].fd = 0; // 0 = stdin
-    pfds[0].events = POLLIN;
-    pfds[1].events = POLLIN;
-    
-    struct sockaddr_in servaddr;
-    pfds[1].fd = socket(AF_INET,SOCK_STREAM,0);
-    bzero(&servaddr,sizeof servaddr);
+	char buffer[MAXBUFFER];
+	memset(buffer, 0, MAXBUFFER);
+	
+	char UserNames[MAX_USER][MAX_NAME+1]; // +1 = null terminator
+	memset(UserNames, 0, MAX_USER*(MAX_NAME+1));
+	
+	struct pollfd pfds[2];
+	
+	pfds[0].fd = 0; // 0 = stdin
+	pfds[0].events = POLLIN;
+	pfds[1].events = POLLIN;
+	
+	struct sockaddr_in servaddr;
+	pfds[1].fd = socket(AF_INET,SOCK_STREAM,0);
+	bzero(&servaddr,sizeof servaddr);
  
-    servaddr.sin_family=AF_INET;
-    servaddr.sin_port=htons(22000);
+	servaddr.sin_family=AF_INET;
+	servaddr.sin_port=htons(22000);
  
  	char ServerAddressString[16] = "127.0.0.1";
  	if(argc > 1)
@@ -63,14 +63,14 @@ int main(int argc,char **argv)
  	}
    	inet_pton(AF_INET, ServerAddressString, &(servaddr.sin_addr));
  
-    connect(pfds[1].fd,(struct sockaddr *)&servaddr,sizeof(servaddr));
-    
-    printf("Set user name:\n");
+	connect(pfds[1].fd,(struct sockaddr *)&servaddr,sizeof(servaddr));
+	
+	printf("Set user name:\n");
 	fgets((buffer + 2),MAX_NAME,stdin); //stdin = 0
 	buffer[0] = USERNAME;
 	buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.
 	write(pfds[1].fd,buffer,strlen(buffer)+1);
-    
+	
  	while(1)
  	{
  		j = poll(pfds, 2u, TIMEOUT);
@@ -78,7 +78,8 @@ int main(int argc,char **argv)
 		{
 			case POLL_EXPIRE:
 				printf("Timeout has expired !\n");
-				break;                                                    
+				break;
+				
 
 			case POLL_ERR:
 				perror("Error on poll");
@@ -88,16 +89,25 @@ int main(int argc,char **argv)
 				//Send message
 				if(pfds[0].revents & POLLIN)
 				{
-                    memset(buffer, 0, MAXBUFFER);
-                    fgets((buffer + 2),MAXMESSAGE+1,stdin); // +1 = null characters, stdin = 0
-				    buffer[0] = MESSAGE;
-				    buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.              
-                    if(buffer[MAXBUFFER-2] == '\0' && buffer[MAXBUFFER-3] != '\n') //max length, include the new line manually
-                    {
-                        buffer[MAXBUFFER-2] = '\n';
-                        buffer[MAXBUFFER-1] = '\0';
-                    }
-        			write(pfds[1].fd,buffer,strlen(buffer)+1);
+					while(1) //loop until all splits of message are sent.
+					{
+						memset(buffer, 0, MAXBUFFER);
+						buffer[0] = MESSAGE;
+						buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.			
+						fgets((buffer + 2),MAXMESSAGE+1,stdin); // +1 = null characters, stdin = 0  
+						if(buffer[MAXBUFFER-3] != '\n' && buffer[MAXBUFFER-3] != 0) //max or more length, include the new line manually
+						{
+							buffer[MAXBUFFER-2] = '\n';
+							buffer[MAXBUFFER-1] = '\0';
+							write(pfds[1].fd,buffer,strlen(buffer)+1);
+						}
+						else //Message short => it is the last one.
+						{
+							write(pfds[1].fd,buffer,strlen(buffer)+1);
+							break;
+						}
+
+					}
 				}
 				
 				//Receive message
