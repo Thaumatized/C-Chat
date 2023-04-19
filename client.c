@@ -10,7 +10,9 @@
 #include <poll.h>
  
 #define PORT			(22000)
-#define MAXBUFF			(1024)
+#define MAXMESSAGE		(512)
+//message type, sender, message, newline and a null character.
+#define MAXBUFFER		(1+1+MAXMESSAGE+1+1)
 #define MAX_USER		(16)
 #define MAX_NAME		(20)
 #define TIMEOUT			(1024 * 1024)
@@ -24,8 +26,8 @@
 int main(int argc,char **argv)
 {
 	int i, j = 0;
-    char buffer[2 + MAXBUFF];
-    memset(buffer, 0, MAXBUFF);
+    char buffer[MAXBUFFER];
+    memset(buffer, 0, MAXBUFFER);
     
     char UserNames[MAX_USER][MAX_NAME+1]; // +1 = null terminator
     memset(UserNames, 0, MAX_USER*(MAX_NAME+1));
@@ -86,17 +88,23 @@ int main(int argc,char **argv)
 				//Send message
 				if(pfds[0].revents & POLLIN)
 				{
-					fgets((buffer + 2),MAXBUFF,stdin); //stdin = 0
-					buffer[0] = MESSAGE;
-					buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.
+                    memset(buffer, 0, MAXBUFFER);
+                    fgets((buffer + 2),MAXMESSAGE+1,stdin); // +1 = null characters, stdin = 0
+				    buffer[0] = MESSAGE;
+				    buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.              
+                    if(buffer[MAXBUFFER-2] == '\0') //max length, include the new line manually
+                    {
+                        buffer[MAXBUFFER-2] = '\n';
+                        buffer[MAXBUFFER-1] = '\0';
+                    }
         			write(pfds[1].fd,buffer,strlen(buffer)+1);
 				}
 				
 				//Receive message
 				if(pfds[1].revents & POLLIN)
 				{
-						memset(buffer, 0, MAXBUFF+2);
-						read(pfds[1].fd, buffer, MAXBUFF+2);
+						memset(buffer, 0, MAXBUFFER);
+						read(pfds[1].fd, buffer, MAXBUFFER);
 						
 						switch(buffer[0])
 						{
@@ -105,7 +113,7 @@ int main(int argc,char **argv)
 								break;
 							case USERNAME: ;
 								int index = 0;
-								while(index < MAXBUFF+2 && buffer[index] != 0)
+								while(index < MAXBUFFER && buffer[index] != 0)
 								{
 									printf("%i set username to %s", buffer[index + 1], &(buffer[index + 2]));
 									//this leaves out the newline
