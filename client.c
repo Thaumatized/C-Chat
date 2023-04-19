@@ -92,7 +92,7 @@ int main(int argc,char **argv)
                     fgets((buffer + 2),MAXMESSAGE+1,stdin); // +1 = null characters, stdin = 0
 				    buffer[0] = MESSAGE;
 				    buffer[1] = 1; // 1 = not null. This is here to make the server have a spot to mark userid.              
-                    if(buffer[MAXBUFFER-2] == '\0') //max length, include the new line manually
+                    if(buffer[MAXBUFFER-2] == '\0' && buffer[MAXBUFFER-3] != '\n') //max length, include the new line manually
                     {
                         buffer[MAXBUFFER-2] = '\n';
                         buffer[MAXBUFFER-1] = '\0';
