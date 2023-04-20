@@ -11,7 +11,8 @@
 #include <sys/time.h>
 
 #define PORT			(22000)
-#define MAXBUFF			(1024)
+//message type, sender, message, newline and a null character.
+#define MAXBUFFER		(1+1+512+1+1)
 #define MAX_USER		(16)
 #define MAX_NAME		(20)
 #define TIMEOUT			(1024 * 1024)
@@ -37,8 +38,8 @@ int main(int argc, char **argv)
 	
 	memset(accepted, 0, (MAX_USER+1) * sizeof(int));
 
-	char Buffer[MAXBUFF + 2];
-	memset(Buffer, 0, MAXBUFF+2);
+	char Buffer[MAXBUFFER];
+	memset(Buffer, 0, MAXBUFFER);
 	
     char UserNames[MAX_USER][MAX_NAME+2]; //+2 = new line and null terminator)
     memset(UserNames, 0, MAX_USER*(MAX_NAME+1));
@@ -152,7 +153,7 @@ int main(int argc, char **argv)
                     //has data and is set.
 					if(pfds[i+1].revents & POLLIN && pfds[i+1].fd != 0)
 					{
-						int Len = read(pfds[i+1].fd, Buffer, MAXBUFF+2);
+						int Len = read(pfds[i+1].fd, Buffer, MAXBUFFER);
 						printf("Message from %i: %s", i, Buffer);
 						Buffer[1] = i + 1; //Senderid, 1-MAX_USER becuse 0 = null
 						SendMessage(i, Buffer, Len);
