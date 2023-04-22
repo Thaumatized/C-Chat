@@ -23,6 +23,7 @@
 //Message types
 #define USERNAME		(1)
 #define MESSAGE			(2)
+#define DISCONNECT		(3)
 
 void SendMessage(int Sender, char* Buffer, int Len);
 
@@ -43,15 +44,6 @@ int main(int argc, char **argv)
 	
     char UserNames[MAX_USER][MAX_NAME+2]; //+2 = new line and null terminator)
     memset(UserNames, 0, MAX_USER*(MAX_NAME+1));
-	
-
-	/*
-	 * We will loop through each file descriptor. First,
-	 * we will create a socket bind to it and then call 
-	 * listen. If we get and error we simply exit, 
-	 * which is fine for now.
-	 * Maybe I will handle it better later?. 
-	 */
 	 
 	// Listener socket stuff
  	// check to see that we can create them
@@ -154,6 +146,21 @@ int main(int argc, char **argv)
 					if(pfds[i+1].revents & POLLIN && pfds[i+1].fd != 0)
 					{
 						int Len = read(pfds[i+1].fd, Buffer, MAXBUFFER);
+						
+						if(Len == 0) // no message => Disconnected
+						{
+							//Unaccept
+							accepted [i] = 0;
+							pfds[i+1].fd = 0;
+							
+							//Inform others
+							Buffer[0] = DISCONNECT;
+							Buffer[1] = i+1; //Userid
+							SendMessage(i, Buffer, 2);
+							
+							continue;
+						}
+						
 						printf("Message from %i: %s", i, Buffer);
 						Buffer[1] = i + 1; //Senderid, 1-MAX_USER becuse 0 = null
 						SendMessage(i, Buffer, Len);
@@ -162,7 +169,9 @@ int main(int argc, char **argv)
 						//if USERNAME, save it.
 						if(Buffer[0] == USERNAME)
 						{
-							//+1 because we wan't to include the newline, since the client parses it out!
+							//If we don't cleanup we might leave a portion of the old name if the new one is shorter
+							memset(UserNames[i], 0, MAX_NAME+1);
+							//+1 because we want to include the newline, since the client parses it out!
 							for(int index = 0; index < MAX_NAME + 1 && index < strlen(&Buffer[2]); index++)
 							{
 								UserNames[i][index] = Buffer[2 + index];
@@ -196,6 +205,18 @@ void SendMessage(int Sender, char* Buffer, int Len)
 			for(int i = 0; i < MAX_USER; i++)
 			{
 				if(i != Sender && accepted[i])
+				{
+					printf("Informing %i:\n", i);
+					write(pfds[i+1].fd, Buffer, Len);
+				}
+			}
+			break;
+		case DISCONNECT:
+			//Share the new username
+			printf("%i disconnected\n", Sender);
+			for(int i = 0; i < MAX_USER; i++)
+			{
+				if(accepted[i]) //The sender is already unaccepted at this point so we don't have to check for them
 				{
 					printf("Informing %i:\n", i);
 					write(pfds[i+1].fd, Buffer, Len);
