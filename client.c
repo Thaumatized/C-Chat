@@ -126,6 +126,8 @@ int main(int argc,char **argv)
 							int index = 0;
 							while(index < MAXBUFFER && buffer[index] != 0)
 							{
+								//If we don't cleanup we might leave a portion of the old name if the new one is shorter
+								memset(UserNames[buffer[index + 1]-1], 0, MAX_NAME+1);
 								//this leaves out the newline
 								for(int i = 0; i < MAX_NAME && i < strlen(&buffer[index + 2])-1; i++)
 								{

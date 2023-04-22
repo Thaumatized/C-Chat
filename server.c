@@ -169,6 +169,8 @@ int main(int argc, char **argv)
 						//if USERNAME, save it.
 						if(Buffer[0] == USERNAME)
 						{
+							//If we don't cleanup we might leave a portion of the old name if the new one is shorter
+							memset(UserNames[i], 0, MAX_NAME+1);
 							//+1 because we want to include the newline, since the client parses it out!
 							for(int index = 0; index < MAX_NAME + 1 && index < strlen(&Buffer[2]); index++)
 							{
