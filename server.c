@@ -154,6 +154,15 @@ int main(int argc, char **argv)
 					if(pfds[i+1].revents & POLLIN && pfds[i+1].fd != 0)
 					{
 						int Len = read(pfds[i+1].fd, Buffer, MAXBUFFER);
+						
+						if(Len == 0) // no message => Disconnected
+						{
+							printf("%i disconnected\n", i);
+							accepted [i] = 0;
+							pfds[i+1].fd = 0;
+							continue;
+						}
+						
 						printf("Message from %i: %s", i, Buffer);
 						Buffer[1] = i + 1; //Senderid, 1-MAX_USER becuse 0 = null
 						SendMessage(i, Buffer, Len);
@@ -162,7 +171,7 @@ int main(int argc, char **argv)
 						//if USERNAME, save it.
 						if(Buffer[0] == USERNAME)
 						{
-							//+1 because we wan't to include the newline, since the client parses it out!
+							//+1 because we want to include the newline, since the client parses it out!
 							for(int index = 0; index < MAX_NAME + 1 && index < strlen(&Buffer[2]); index++)
 							{
 								UserNames[i][index] = Buffer[2 + index];
