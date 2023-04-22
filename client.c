@@ -22,6 +22,7 @@
 //Message types
 #define USERNAME		(1)
 #define MESSAGE			(2)
+#define DISCONNECT		(3	)
 
 int main(int argc,char **argv)
 {
@@ -113,31 +114,34 @@ int main(int argc,char **argv)
 				//Receive message
 				if(pfds[1].revents & POLLIN)
 				{
-						memset(buffer, 0, MAXBUFFER);
-						read(pfds[1].fd, buffer, MAXBUFFER);
-						
-						switch(buffer[0])
-						{
-							case MESSAGE:
-								printf("%s: %s", UserNames[buffer[1]-1],  &(buffer[2]));
-								break;
-							case USERNAME: ;
-								int index = 0;
-								while(index < MAXBUFFER && buffer[index] != 0)
+					memset(buffer, 0, MAXBUFFER);
+					read(pfds[1].fd, buffer, MAXBUFFER);
+					
+					switch(buffer[0])
+					{
+						case MESSAGE:
+							printf("%s: %s", UserNames[buffer[1]-1],  &(buffer[2]));
+							break;
+						case USERNAME: ;
+							int index = 0;
+							while(index < MAXBUFFER && buffer[index] != 0)
+							{
+								//this leaves out the newline
+								for(int i = 0; i < MAX_NAME && i < strlen(&buffer[index + 2])-1; i++)
 								{
-									printf("%i set username to %s", buffer[index + 1], &(buffer[index + 2]));
-									//this leaves out the newline
-									for(int i = 0; i < MAX_NAME && i < strlen(&buffer[index + 2])-1; i++)
-									{
-										UserNames[buffer[index + 1]-1][i] = buffer[index + 2 + i];
-									}
-									index += strlen(buffer + index)+1;
+									UserNames[buffer[index + 1]-1][i] = buffer[index + 2 + i];
 								}
-								
-								break;
-							default:
-								break;
-						}
+								printf("%s has entered the chat\n", UserNames[buffer[index + 1]-1]);
+								index += strlen(buffer + index)+1;
+							}
+							break;
+						case DISCONNECT:
+							printf("%s has left the chat\n", UserNames[buffer[1]-1]);
+							break;
+						default:
+							printf("WARNING: UNKOWN MESSAGE TYPE; %i\n	", buffer[0]);		
+							break;
+					}
 				}
 		} //Switch
 	} //While
